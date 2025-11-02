@@ -57,6 +57,12 @@ final class UserPreferences {
     /// Date when last tip was generated
     var lastTipDate: Date?
 
+    /// AI Coach conversations used today (Free tier limit: 3/day)
+    var aiCoachConversationsToday: Int
+
+    /// Date of last AI coach conversation (to reset daily counter)
+    var lastAICoachDate: Date?
+
     init() {
         // Default: 9:00 AM notification
         self.primaryNotificationHour = 9
@@ -81,10 +87,54 @@ final class UserPreferences {
         // Default theme
         self.themePreference = "default"
 
-        // AI features enabled by default (requires premium)
+        // AI features enabled by default (now available for free tier!)
         self.aiTipsEnabled = true
         self.aiCoachEnabled = true
         self.lastDailyTip = nil
         self.lastTipDate = nil
+
+        // AI usage tracking for free tier
+        self.aiCoachConversationsToday = 0
+        self.lastAICoachDate = nil
+    }
+
+    // MARK: - AI Usage Helpers
+
+    /// Check if user can use AI Coach (free: 3/day, premium: unlimited)
+    func canUseAICoach(isPremium: Bool) -> Bool {
+        if isPremium { return true }
+
+        // Reset counter if it's a new day
+        if let lastDate = lastAICoachDate,
+           !Calendar.current.isDateInToday(lastDate) {
+            aiCoachConversationsToday = 0
+        }
+
+        return aiCoachConversationsToday < 3
+    }
+
+    /// Increment AI Coach usage counter
+    mutating func incrementAICoachUsage() {
+        // Reset if new day
+        if let lastDate = lastAICoachDate,
+           !Calendar.current.isDateInToday(lastDate) {
+            aiCoachConversationsToday = 0
+        }
+
+        aiCoachConversationsToday += 1
+        lastAICoachDate = Date()
+    }
+
+    /// Get remaining AI Coach conversations for today (free tier)
+    func remainingAICoachConversations(isPremium: Bool) -> Int? {
+        if isPremium { return nil } // Unlimited
+
+        // Reset if new day
+        if let lastDate = lastAICoachDate,
+           !Calendar.current.isDateInToday(lastDate) {
+            return 3
+        }
+
+        return max(0, 3 - aiCoachConversationsToday)
     }
 }

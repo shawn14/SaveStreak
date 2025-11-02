@@ -37,10 +37,8 @@ struct SettingsView: View {
             // Premium Status
             premiumSection
 
-            // AI Features
-            if storeManager.isPremium {
-                aiSection
-            }
+            // AI Features (Available to all users)
+            aiSection
 
             // Notifications
             notificationSection
@@ -76,8 +74,12 @@ struct SettingsView: View {
                         .foregroundStyle(.green)
                 }
             } else {
+                // DEVELOPMENT: Enable Premium for testing
                 Button(action: {
-                    showingPaywall = true
+                    // Toggle premium for testing
+                    preferences.isPremium.toggle()
+                    preferences.premiumPurchaseDate = Date()
+                    try? modelContext.save()
                 }) {
                     HStack {
                         Image(systemName: "crown.fill")
@@ -154,6 +156,8 @@ struct SettingsView: View {
         } footer: {
             if !AIService.shared.hasAPIKey {
                 Text("Add your OpenAI API key to enable AI features. Your key is stored securely on your device.")
+            } else if !storeManager.isPremium {
+                Text("Free tier: 1 daily tip, 3 AI Coach conversations per day. Upgrade to Premium for unlimited access.")
             }
         }
         .alert("OpenAI API Key", isPresented: $showingAPIKeyInput) {

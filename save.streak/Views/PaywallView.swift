@@ -125,14 +125,14 @@ struct PaywallView: View {
 
             featureRow(
                 icon: "brain.head.profile",
-                title: "AI Daily Tips",
-                description: "Personalized saving tips powered by GPT-4"
+                title: "Unlimited AI Tips",
+                description: "Get as many personalized tips as you want"
             )
 
             featureRow(
                 icon: "message.fill",
-                title: "AI Coach",
-                description: "Chat with your AI savings coach anytime"
+                title: "Unlimited AI Coach",
+                description: "Chat with your AI coach anytime, no daily limits"
             )
 
             featureRow(

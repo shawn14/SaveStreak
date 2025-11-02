@@ -28,9 +28,8 @@ struct DashboardView: View {
     }
 
     private var shouldShowAIFeatures: Bool {
-        (preferences?.isPremium ?? false) &&
-        (preferences?.aiTipsEnabled ?? false) &&
-        AIService.shared.hasAPIKey
+        // AI now available for ALL users (free tier has limits)
+        (preferences?.aiTipsEnabled ?? false) && AIService.shared.hasAPIKey
     }
 
     var body: some View {

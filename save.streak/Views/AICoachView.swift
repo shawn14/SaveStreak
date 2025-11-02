@@ -10,12 +10,14 @@ import SwiftData
 
 struct AICoachView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Query private var goals: [SavingsGoal]
     @Query private var userPreferences: [UserPreferences]
 
     @StateObject private var coach = GoalCoach()
     @State private var messageText = ""
     @State private var showingPaywall = false
+    @State private var showingLimitReached = false
 
     private var activeGoal: SavingsGoal? {
         goals.first { $0.isActive }
@@ -25,13 +27,25 @@ struct AICoachView: View {
         userPreferences.first?.isPremium ?? false
     }
 
+    private var preferences: UserPreferences? {
+        userPreferences.first
+    }
+
+    private var canUseCoach: Bool {
+        preferences?.canUseAICoach(isPremium: isPremium) ?? false
+    }
+
+    private var remainingConversations: Int? {
+        preferences?.remainingAICoachConversations(isPremium: isPremium)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if !isPremium {
-                    premiumPrompt
-                } else if !AIService.shared.hasAPIKey {
+                if !AIService.shared.hasAPIKey {
                     apiKeyPrompt
+                } else if !canUseCoach {
+                    limitReachedPrompt
                 } else {
                     chatContent
                 }
@@ -42,6 +56,19 @@ struct AICoachView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
                         dismiss()
+                    }
+                }
+
+                // Show usage counter for free users
+                if !isPremium, let remaining = remainingConversations {
+                    ToolbarItem(placement: .principal) {
+                        HStack {
+                            Text("AI Coach")
+                                .font(.headline)
+                            Text("(\(remaining)/3 today)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -212,38 +239,53 @@ struct AICoachView: View {
         }
     }
 
-    // MARK: - Premium Prompt
+    // MARK: - Limit Reached Prompt
     @ViewBuilder
-    private var premiumPrompt: some View {
+    private var limitReachedPrompt: some View {
         VStack(spacing: 20) {
             Spacer()
 
-            Image(systemName: "lock.fill")
+            Image(systemName: "clock.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.orange)
 
-            Text("Premium Feature")
+            Text("Daily Limit Reached")
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("AI Coach is available to Premium subscribers. Get personalized savings advice and motivation!")
+            Text("You've used all 3 free AI Coach conversations today. Come back tomorrow or upgrade to Premium for unlimited access!")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
-            Button(action: {
-                showingPaywall = true
-            }) {
-                Text("Upgrade to Premium")
+            VStack(spacing: 12) {
+                Text("Resets at midnight")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button(action: {
+                    showingPaywall = true
+                }) {
+                    HStack {
+                        Image(systemName: "crown.fill")
+                        Text("Upgrade for Unlimited")
+                    }
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.green)
+                    .background(
+                        LinearGradient(
+                            colors: [.purple, .blue],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
                     .cornerRadius(12)
+                }
+                .padding(.horizontal, 40)
             }
-            .padding(.horizontal, 40)
 
             Spacer()
         }
@@ -279,6 +321,12 @@ struct AICoachView: View {
         guard !message.isEmpty else { return }
 
         messageText = ""
+
+        // Increment usage counter for free users
+        if let prefs = preferences, !isPremium {
+            prefs.incrementAICoachUsage()
+            try? modelContext.save()
+        }
 
         Task {
             await coach.sendMessage(message)
