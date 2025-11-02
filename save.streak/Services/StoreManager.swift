@@ -58,7 +58,7 @@ class StoreManager: ObservableObject {
     }
 
     /// Purchase a product
-    func purchase(_ product: Product) async throws -> Transaction? {
+    func purchase(_ product: Product) async throws -> StoreKit.Transaction? {
         // Start a purchase
         let result = try await product.purchase()
 
@@ -102,7 +102,7 @@ class StoreManager: ObservableObject {
         var purchasedIDs: Set<String> = []
 
         // Iterate through all current entitlements
-        for await result in Transaction.currentEntitlements {
+        for await result in StoreKit.Transaction.currentEntitlements {
             do {
                 let transaction = try checkVerified(result)
 
@@ -123,9 +123,9 @@ class StoreManager: ObservableObject {
     /// Listen for transaction updates (background purchases, etc.)
     private func listenForTransactions() -> Task<Void, Error> {
         return Task.detached {
-            for await result in Transaction.updates {
+            for await result in StoreKit.Transaction.updates {
                 do {
-                    let transaction = try self.checkVerified(result)
+                    let transaction = try await self.checkVerified(result)
 
                     // Update purchased products
                     await self.updatePurchasedProducts()
