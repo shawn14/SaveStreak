@@ -45,6 +45,18 @@ final class UserPreferences {
     /// When user completed onboarding
     var onboardingCompletedDate: Date?
 
+    /// Whether AI daily tips are enabled (Premium feature)
+    var aiTipsEnabled: Bool
+
+    /// Whether AI goal coach is enabled (Premium feature)
+    var aiCoachEnabled: Bool
+
+    /// Last generated daily tip
+    var lastDailyTip: String?
+
+    /// Date when last tip was generated
+    var lastTipDate: Date?
+
     init() {
         // Default: 9:00 AM notification
         self.primaryNotificationHour = 9
@@ -68,5 +80,11 @@ final class UserPreferences {
 
         // Default theme
         self.themePreference = "default"
+
+        // AI features enabled by default (requires premium)
+        self.aiTipsEnabled = true
+        self.aiCoachEnabled = true
+        self.lastDailyTip = nil
+        self.lastTipDate = nil
     }
 }

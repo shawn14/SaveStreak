@@ -18,6 +18,8 @@ struct SettingsView: View {
 
     @State private var showingPaywall = false
     @State private var showingDeleteConfirmation = false
+    @State private var apiKey = ""
+    @State private var showingAPIKeyInput = false
 
     private var preferences: UserPreferences {
         if let existing = userPreferences.first {
@@ -34,6 +36,11 @@ struct SettingsView: View {
         List {
             // Premium Status
             premiumSection
+
+            // AI Features
+            if storeManager.isPremium {
+                aiSection
+            }
 
             // Notifications
             notificationSection
@@ -98,6 +105,69 @@ struct SettingsView: View {
             }
         } header: {
             Text("Premium")
+        }
+    }
+
+    // MARK: - AI Section
+    @ViewBuilder
+    private var aiSection: some View {
+        Section {
+            HStack {
+                Image(systemName: "key.fill")
+                    .foregroundStyle(.purple)
+                Text("API Key")
+                Spacer()
+                if AIService.shared.hasAPIKey {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Configured")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Not Set")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                showingAPIKeyInput = true
+            }
+
+            Toggle("Daily AI Tips", isOn: Binding(
+                get: { preferences.aiTipsEnabled },
+                set: { newValue in
+                    preferences.aiTipsEnabled = newValue
+                    try? modelContext.save()
+                }
+            ))
+
+            Toggle("AI Coach", isOn: Binding(
+                get: { preferences.aiCoachEnabled },
+                set: { newValue in
+                    preferences.aiCoachEnabled = newValue
+                    try? modelContext.save()
+                }
+            ))
+        } header: {
+            Text("AI Features")
+        } footer: {
+            if !AIService.shared.hasAPIKey {
+                Text("Add your OpenAI API key to enable AI features. Your key is stored securely on your device.")
+            }
+        }
+        .alert("OpenAI API Key", isPresented: $showingAPIKeyInput) {
+            TextField("sk-proj-...", text: $apiKey)
+                .textContentType(.password)
+            Button("Cancel", role: .cancel) {
+                apiKey = ""
+            }
+            Button("Save") {
+                AIService.shared.setAPIKey(apiKey)
+                apiKey = ""
+            }
+        } message: {
+            Text("Enter your OpenAI API key. Get one at platform.openai.com")
         }
     }
 

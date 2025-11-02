@@ -17,6 +17,21 @@ struct DashboardView: View {
     @State private var showingAddAmount = false
     @State private var customAmount = ""
     @State private var showingGoalSetup = false
+    @State private var showingAICoach = false
+    @State private var dailyTip: String?
+    @State private var isLoadingTip = false
+
+    @Query private var userPreferences: [UserPreferences]
+
+    private var preferences: UserPreferences? {
+        userPreferences.first
+    }
+
+    private var shouldShowAIFeatures: Bool {
+        (preferences?.isPremium ?? false) &&
+        (preferences?.aiTipsEnabled ?? false) &&
+        AIService.shared.hasAPIKey
+    }
 
     var body: some View {
         NavigationStack {
@@ -43,10 +58,14 @@ struct DashboardView: View {
                     addSaveSheet(for: goal)
                 }
             }
+            .sheet(isPresented: $showingAICoach) {
+                AICoachView()
+            }
             .onAppear {
                 if viewModel == nil {
                     viewModel = DashboardViewModel(modelContext: modelContext)
                 }
+                loadDailyTipIfNeeded()
             }
         }
     }
@@ -64,6 +83,11 @@ struct DashboardView: View {
 
                 // Progress Section
                 progressSection(for: goal)
+
+                // AI Daily Tip (Premium)
+                if shouldShowAIFeatures {
+                    aiTipCard(for: goal)
+                }
 
                 // Quick Save Button
                 quickSaveButton(for: goal)
@@ -403,6 +427,117 @@ struct DashboardView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+
+    // MARK: - AI Tip Card
+    @ViewBuilder
+    private func aiTipCard(for goal: SavingsGoal) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .foregroundStyle(.purple)
+                Text("AI Tip of the Day")
+                    .font(.headline)
+                Spacer()
+                Button(action: { showingAICoach = true }) {
+                    Image(systemName: "message.fill")
+                        .foregroundStyle(.purple)
+                }
+            }
+
+            if isLoadingTip {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding()
+            } else if let tip = dailyTip {
+                Text(tip)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button(action: {
+                    Task {
+                        await loadNewTip(for: goal)
+                    }
+                }) {
+                    Text("Get New Tip")
+                        .font(.caption)
+                        .foregroundStyle(.purple)
+                }
+            } else {
+                VStack(spacing: 8) {
+                    Text("Get your personalized saving tip!")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Button(action: {
+                        Task {
+                            await loadNewTip(for: goal)
+                        }
+                    }) {
+                        Text("Generate Tip")
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.purple)
+                            .cornerRadius(8)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+    }
+
+    // MARK: - Helper Functions
+    private func loadDailyTipIfNeeded() {
+        guard shouldShowAIFeatures,
+              let goal = activeGoals.first,
+              let prefs = preferences else {
+            return
+        }
+
+        // Check if we already have today's tip
+        if let lastTipDate = prefs.lastTipDate,
+           Calendar.current.isDateInToday(lastTipDate),
+           let tip = prefs.lastDailyTip {
+            dailyTip = tip
+            return
+        }
+
+        // Load new tip for today
+        Task {
+            await loadNewTip(for: goal)
+        }
+    }
+
+    private func loadNewTip(for goal: SavingsGoal) async {
+        isLoadingTip = true
+        defer { isLoadingTip = false }
+
+        do {
+            let tipGenerator = TipGenerator()
+            let tip = try await tipGenerator.generateDailyTip(for: goal)
+
+            dailyTip = tip
+
+            // Save to preferences
+            if let prefs = preferences {
+                prefs.lastDailyTip = tip
+                prefs.lastTipDate = Date()
+                try? modelContext.save()
+            }
+        } catch {
+            print("Error generating tip: \(error)")
+            dailyTip = "💡 Every small save counts! Keep up your streak!"
+        }
     }
 }
 

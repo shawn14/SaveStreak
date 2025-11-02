@@ -124,9 +124,15 @@ struct PaywallView: View {
             )
 
             featureRow(
-                icon: "sparkles",
-                title: "AI Tips",
-                description: "Daily money-saving tips powered by AI (coming soon)"
+                icon: "brain.head.profile",
+                title: "AI Daily Tips",
+                description: "Personalized saving tips powered by GPT-4"
+            )
+
+            featureRow(
+                icon: "message.fill",
+                title: "AI Coach",
+                description: "Chat with your AI savings coach anytime"
             )
 
             featureRow(
