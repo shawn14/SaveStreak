@@ -224,17 +224,15 @@ struct PaywallView: View {
                         .fontWeight(.bold)
 
                     if let subscription = product.subscription {
-                        switch subscription.subscriptionPeriod.unit {
-                        case .month:
+                        let unit = subscription.subscriptionPeriod.unit
+                        if unit == .month {
                             Text("per month")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                        case .year:
+                        } else if unit == .year {
                             Text("per year")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                        default:
-                            EmptyView()
                         }
                     }
                 }
